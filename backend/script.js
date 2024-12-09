@@ -1,17 +1,8 @@
-const params = {
-    "month": "December 2024",
-    "url": "https://example.com/content-calendar",
-    "posts": [
-        { "date": "2024-12-05", "pillar": "Awareness", "title": "Post 1", "description": "Description 1", "hashtags": "#tag1" },
-        { "date": null, "pillar": "Engagement", "title": "Post 2", "description": "Description 2", "hashtags": "#tag2" },
-        { "date": "2024-12-03", "pillar": "Conversion", "title": "Post 3", "description": "Description 3", "hashtags": "#tag3" }
-    ]
-};
-
-function doPost(e) {
+function doGet(e) {
     try {
         // Parse and validate input
-        const params = JSON.parse(e.postData.contents);
+        const params = JSON.parse(e.parameter.data);
+
         validateInput(params);
 
         const { month, url, posts } = params;
@@ -74,9 +65,6 @@ function createContentCalendarDoc(month, url, posts) {
 
     const generatedDate = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "MM/dd/yyyy");
 
-    // body.appendParagraph(`Generated on: ${new Date().toLocaleDateString()}`)
-    //     .setHeading(DocumentApp.ParagraphHeading.NORMAL);
-
     body.appendParagraph(`Generated on: ${generatedDate}`)
         .setHeading(DocumentApp.ParagraphHeading.NORMAL);
 
@@ -112,19 +100,30 @@ function appendPostToDoc(body, post) {
         { label: "Title", content: post.title },
         { label: "Description", content: post.description },
         { label: "Hashtags", content: post.hashtags || "N/A" },
-        { label: "Canva Link", content: "" }
+        { label: "Canva Link", content: post.canva || "N/A" }
     ];
 
     // Append each field as a bullet with bold label
     fields.forEach(({ label, content }) => {
-        const listItem = body.appendListItem(`${label}: ${content}`)
-            .setGlyphType(DocumentApp.GlyphType.BULLET);
+        const listItem = body.appendListItem(`${label}: `);
+        listItem.setGlyphType(DocumentApp.GlyphType.BULLET);
+
+        // Make the Canva link clickable
+        if (label === "Canva Link" && content) {
+            const canvaLink = listItem.appendText(`${content}`);
+            canvaLink.setLinkUrl(content); // Make the link clickable
+        }
+        else{
+            listItem.appendText(`${content}`);
+        }
+
         listItem.editAsText().setBold(0, label.length + 1, true); // Bold the label
     });
 
     // Add spacing between posts
     body.appendParagraph('');
 }
+
 
 function addFooter(doc, url) {
     const footer = doc.addFooter();
@@ -144,12 +143,13 @@ function addFooter(doc, url) {
 
 // Generate a success response
 function successResponse(docUrl) {
-    Logger.log("success")
+    Logger.log("success");
     return ContentService.createTextOutput(JSON.stringify({
         success: true,
         documentUrl: docUrl,
         timestamp: new Date().toISOString()
     })).setMimeType(ContentService.MimeType.JSON);
+    ;
 }
 
 // Generate an error response
