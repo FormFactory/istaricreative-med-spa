@@ -92,10 +92,11 @@ function collectPostData(item) {
 
     const postData = {
         date: formattedDate,
-        pillar: item.querySelector('.pillar').textContent,
-        title: item.querySelector('.title').textContent,
-        description: item.querySelector('.description').textContent,
-        hashtags: item.querySelector('.hashtags-input').value
+        pillar: normalizeText(item.querySelector('.pillar').textContent),
+        title: normalizeText(item.querySelector('.title').textContent),
+        description: normalizeText(item.querySelector('.description').textContent),
+        hashtags: normalizeText(item.querySelector('.hashtags-input').value),
+        canva: normalizeText(item.querySelector('.canva-link').href)
     };
 
     return postData;
@@ -116,42 +117,63 @@ function formatDate(dateValue) {
     }
 }
 
+function normalizeText(input) {
+    return input
+        .replace(/\s+/g, ' ') // Replace all whitespace (newlines, tabs, spaces) with a single space
+        .trim();              // Trim leading and trailing whitespace
+}
+
 // Send the collected data to the backend
 function sendDataToBackend(params) {
     const exportButton = document.querySelector('.export-button');
-    exportButton.disabled = true;
-    exportButton.textContent = 'Exporting...';
+    const scriptUrl = "https://script.google.com/macros/s/AKfycbzdZUqLAZOCN22iZd3cZH0AFVcpnl-RercJz_MFou-X3TOhJEcbgjaEE0M5BdnciFlqag/exec";
 
-    const scriptUrl = "https://script.google.com/macros/s/AKfycbz041HnYJnAg5_cUvf7sYGV4eWKZipjRWZ3iKj3mz-6m2uLEj-LzisIXK65jLWsO8eIJA/exec";
-    const formData = new FormData();
-    formData.append('data', JSON.stringify(params));
+    // Convert params to a URL query string
+    const queryString = new URLSearchParams({ data: JSON.stringify(params) }).toString();
+    const urlWithParams = `${scriptUrl}?${queryString}`;
 
-    console.log('Sending data to script URL:', scriptUrl);
+    // Disable the button and update its text
+    updateExportButtonState(exportButton, true, 'Exporting...');
 
-    fetch(scriptUrl, {
-        method: 'POST',
-        mode: 'no-cors',
-        body: formData
+    console.log('Sending GET request to backend:', { urlWithParams });
+
+    // Perform the GET request
+    fetch(urlWithParams, {
+        method: 'GET',
     })
-        .then(response => {
-            console.log('Response received:', response);
-            return fetch(`${scriptUrl}?action=getLastDoc`);
-        })
+        .then(validateResponse)
         .then(response => response.json())
         .then(data => handleResponse(data))
         .catch(error => handleError(error))
         .finally(() => {
-            exportButton.disabled = false;
-            exportButton.textContent = 'Export Selected Posts';
+            // Re-enable the button after completion
+            updateExportButtonState(exportButton, false, 'Export Selected Posts');
         });
 }
+
+// Helper to validate the response status
+function validateResponse(response) {
+    console.log('Response received:', response);
+    if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    return response;
+}
+
+// Helper to update export button state
+function updateExportButtonState(button, isDisabled, text) {
+    button.disabled = isDisabled;
+    button.textContent = text;
+}
+
+
 
 // Handle the response from the backend
 function handleResponse(data) {
     console.log('Backend response data:', data);
-    if (data.url) {
-        console.log('Document URL:', data.url);
-        window.open(data.url, '_blank');
+    if (data.documentUrl) {
+        console.log('Document URL:', data.documentUrl);
+        window.open(data.documentUrl, '_blank');
     } else {
         throw new Error('No document URL received');
     }
