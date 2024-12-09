@@ -45,73 +45,124 @@ document.addEventListener('DOMContentLoaded', function () {
 
 function exportSelectedPosts() {
     const selectedPosts = [];
+    const month = getMonthFromHeader();
+    const url = window.location.href;
 
+    console.log('Month:', month);
+    console.log('URL:', url);
+
+    // Collect data from selected posts
     document.querySelectorAll('.content-item').forEach(item => {
         if (item.querySelector('.checkbox').checked) {
-            const dateValue = item.querySelector('.date-selector').value;
-            let noDateAssignedYet = 'No Date Assigned Yet';
-
-            let formattedDate = noDateAssignedYet;
-
-            if (dateValue) {
-                try {
-                    const date = new Date(dateValue);
-                    formattedDate = date.toLocaleDateString();
-                } catch {
-                    formattedDate = noDateAssignedYet;
-                }
-            }
-
-            selectedPosts.push({
-                phase: item.closest('.phase').querySelector('.phase-header h2').textContent,
-                pillar: item.querySelector('.pillar').textContent,
-                title: item.querySelector('.title').textContent,
-                description: item.querySelector('.description').textContent,
-                hashtags: item.querySelector('.hashtags-input').value,
-                date: formattedDate
-            });
+            const postData = collectPostData(item);
+            console.log('Collected Post Data:', postData);
+            selectedPosts.push(postData);
         }
     });
 
+    console.log('Selected Posts:', selectedPosts);
+
+    // If there are selected posts, send them to the backend
     if (selectedPosts.length > 0) {
-        console.log('Sending posts:', selectedPosts);
+        const params = {
+            month: month,
+            url: url,
+            posts: selectedPosts
+        };
 
-        const exportButton = document.querySelector('.export-button');
-        exportButton.disabled = true;
-        exportButton.textContent = 'Exporting...';
-
-        // const scriptUrl = 'https://script.google.com/macros/s/AKfycbx8Jmrd_8dxoKzC04el7I59owIrodfpsUwQcpRrACtSWwt1eo6A3AlvBl0TdWW2_lO6Eg/exec';
-        const scriptUrl = "https://script.google.com/macros/s/AKfycbz041HnYJnAg5_cUvf7sYGV4eWKZipjRWZ3iKj3mz-6m2uLEj-LzisIXK65jLWsO8eIJA/exec"
-
-        const formData = new FormData();
-        formData.append('data', JSON.stringify(selectedPosts));
-
-        fetch(scriptUrl, {
-            method: 'POST',
-            mode: 'no-cors',
-            body: formData
-        })
-            .then(response => {
-                return fetch(`${scriptUrl}?action=getLastDoc`);
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.url) {
-                    window.open(data.url, '_blank');
-                } else {
-                    throw new Error('No document URL received');
-                }
-            })
-            .catch(error => {
-                console.error('Export failed:', error);
-                alert('Export failed. Please try again.');
-            })
-            .finally(() => {
-                exportButton.disabled = false;
-                exportButton.textContent = 'Export Selected Posts';
-            });
+        console.log('Sending data to backend:', params);
+        sendDataToBackend(params);
+    } else {
+        console.log('No posts selected.');
     }
 }
+
+// Get the month from the header
+function getMonthFromHeader() {
+    const headerText = document.querySelector('.calendar-header h1').textContent;
+    const monthYear = headerText.split(' ')[0] + ' ' + headerText.split(' ')[1];
+    console.log('Extracted Month:', monthYear);
+    return monthYear; // Extracts "February 2025"
+}
+
+// Collect data from a single post item
+function collectPostData(item) {
+    const dateValue = item.querySelector('.date-selector').value;
+    const formattedDate = formatDate(dateValue);
+
+    const postData = {
+        date: formattedDate,
+        pillar: item.querySelector('.pillar').textContent,
+        title: item.querySelector('.title').textContent,
+        description: item.querySelector('.description').textContent,
+        hashtags: item.querySelector('.hashtags-input').value
+    };
+
+    return postData;
+}
+
+// Format the date to MM/DD/YYYY, or return "No Date Assigned Yet"
+function formatDate(dateValue) {
+    if (!dateValue) return "No Date Assigned Yet";
+
+    try {
+        const date = new Date(dateValue);
+        const formattedDate = date.toLocaleDateString('en-US'); // Format as MM/DD/YYYY
+        console.log('Formatted Date:', formattedDate);
+        return formattedDate;
+    } catch (error) {
+        console.log('Error formatting date:', error);
+        return "No Date Assigned Yet";
+    }
+}
+
+// Send the collected data to the backend
+function sendDataToBackend(params) {
+    const exportButton = document.querySelector('.export-button');
+    exportButton.disabled = true;
+    exportButton.textContent = 'Exporting...';
+
+    const scriptUrl = "https://script.google.com/macros/s/AKfycbz041HnYJnAg5_cUvf7sYGV4eWKZipjRWZ3iKj3mz-6m2uLEj-LzisIXK65jLWsO8eIJA/exec";
+    const formData = new FormData();
+    formData.append('data', JSON.stringify(params));
+
+    console.log('Sending data to script URL:', scriptUrl);
+
+    fetch(scriptUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: formData
+    })
+        .then(response => {
+            console.log('Response received:', response);
+            return fetch(`${scriptUrl}?action=getLastDoc`);
+        })
+        .then(response => response.json())
+        .then(data => handleResponse(data))
+        .catch(error => handleError(error))
+        .finally(() => {
+            exportButton.disabled = false;
+            exportButton.textContent = 'Export Selected Posts';
+        });
+}
+
+// Handle the response from the backend
+function handleResponse(data) {
+    console.log('Backend response data:', data);
+    if (data.url) {
+        console.log('Document URL:', data.url);
+        window.open(data.url, '_blank');
+    } else {
+        throw new Error('No document URL received');
+    }
+}
+
+// Handle any errors that occur during the fetch
+function handleError(error) {
+    console.error('Export failed:', error);
+    alert('Export failed. Please try again.');
+}
+
 
 // Updated button state management
 document.addEventListener('DOMContentLoaded', function () {
