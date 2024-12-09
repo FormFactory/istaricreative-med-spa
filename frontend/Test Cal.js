@@ -1,5 +1,13 @@
+
+function updateExportButton() {
+    const exportButton = document.querySelector('.export-button');
+    const checkedItems = document.querySelectorAll('.checkbox:checked').length;
+    exportButton.disabled = checkedItems === 0; // Only disable if no items are selected
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     const phases = document.querySelectorAll('.phase');
+
 
     function updatePhaseCounter(phase) {
         const checkedBoxes = phase.querySelectorAll('.checkbox:checked').length;
@@ -41,14 +49,16 @@ function exportSelectedPosts() {
     document.querySelectorAll('.content-item').forEach(item => {
         if (item.querySelector('.checkbox').checked) {
             const dateValue = item.querySelector('.date-selector').value;
-            let formattedDate = 'No Date Assigned';
+            let noDateAssignedYet = 'No Date Assigned Yet';
+
+            let formattedDate = noDateAssignedYet;
 
             if (dateValue) {
                 try {
                     const date = new Date(dateValue);
                     formattedDate = date.toLocaleDateString();
                 } catch {
-                    formattedDate = 'No Date Assigned';
+                    formattedDate = noDateAssignedYet;
                 }
             }
 
@@ -70,7 +80,8 @@ function exportSelectedPosts() {
         exportButton.disabled = true;
         exportButton.textContent = 'Exporting...';
 
-        const scriptUrl = 'https://script.google.com/macros/s/AKfycbx8Jmrd_8dxoKzC04el7I59owIrodfpsUwQcpRrACtSWwt1eo6A3AlvBl0TdWW2_lO6Eg/exec';
+        // const scriptUrl = 'https://script.google.com/macros/s/AKfycbx8Jmrd_8dxoKzC04el7I59owIrodfpsUwQcpRrACtSWwt1eo6A3AlvBl0TdWW2_lO6Eg/exec';
+        const scriptUrl = "https://script.google.com/macros/s/AKfycbz041HnYJnAg5_cUvf7sYGV4eWKZipjRWZ3iKj3mz-6m2uLEj-LzisIXK65jLWsO8eIJA/exec"
 
         const formData = new FormData();
         formData.append('data', JSON.stringify(selectedPosts));
@@ -105,11 +116,7 @@ function exportSelectedPosts() {
 // Updated button state management
 document.addEventListener('DOMContentLoaded', function () {
     const exportButton = document.querySelector('.export-button');
-
-    function updateExportButton() {
-        const checkedItems = document.querySelectorAll('.checkbox:checked').length;
-        exportButton.disabled = checkedItems === 0; // Only disable if no items are selected
-    }
+    exportButton.addEventListener('click', exportSelectedPosts);
 
     // Add event listeners for checkboxes only
     document.querySelectorAll('.checkbox').forEach(checkbox => {
